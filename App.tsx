@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { TextInput } from 'react-native-paper';
 import { BarChart } from 'react-native-chart-kit';
+import * as Location from 'expo-location'; // For location-based sun hours
 
 interface FormData {
   monthlyKWh: number;
@@ -26,7 +28,7 @@ interface Results {
 }
 
 export default function App() {
-  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, formState: { errors }, setValue } = useForm<FormData>({
     defaultValues: {
       monthlyKWh: 0,
       homeSize: 0,
@@ -35,6 +37,40 @@ export default function App() {
   });
 
   const [results, setResults] = React.useState<Results | null>(null);
+
+  // Function: Get location and estimate sun hours
+  const getLocationSunHours = async () => {
+    try {
+      // Request permission (foreground for quick access)
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          `Location access needed to estimate sun hours. ${Platform.OS === 'ios' ? 'Go to Settings > SolarROI > Location.' : 'Enable in app settings.'}`
+        );
+        return;
+      }
+
+      // Get current position
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude } = location.coords;
+
+      // Estimate annual peak sun hours for Europe (35°-60° lat)
+      // Approximation: base 1000 + (45 - lat) * 10, clamped 900-1600
+      let estimatedSunHours = 1000 + (45 - latitude) * 10;
+      estimatedSunHours = Math.max(900, Math.min(1600, estimatedSunHours));
+
+      // Set form value
+      setValue('sunHours', Math.round(estimatedSunHours));
+
+      Alert.alert('Location Updated', `Sun hours set to ~${Math.round(estimatedSunHours)} based on latitude ${latitude.toFixed(1)}° (EU estimate).`);
+    } catch (error: any) {
+      Alert.alert('Location Error', `Failed to get location: ${error.message}`);
+    }
+  };
 
   const onSubmit = (data: FormData): void => {
     // Calculation logic
@@ -54,7 +90,7 @@ export default function App() {
     const annualSavings = annualProduction * electricityRate; // €/year
     const paybackYears = annualSavings > 0 ? systemCost / annualSavings : 0;
     const co2Reduction = annualProduction * co2Factor; // kg/year
-    
+
     const newResults: Results = {
       annualSavings: Math.round(annualSavings),
       payback: Math.round(paybackYears * 100) / 100,
@@ -82,7 +118,7 @@ export default function App() {
     color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`, // Green for savings
     labelColor: (opacity = 1) => `rgba(102, 102, 102, ${opacity})`,
     decimalPlaces: 0,
-    yAxisSuffix: '€', // Required fix: Adds € suffix to y-axis labels
+    yAxisSuffix: '€', // Required in config for fallback
   };
 
   return (
@@ -125,6 +161,11 @@ export default function App() {
         )}
       />
       {errors.homeSize && <Text style={styles.error}>{errors.homeSize.message}</Text>}
+
+      {/* Location Button for Sun Hours */}
+      <TouchableOpacity style={styles.locationButton} onPress={getLocationSunHours}>
+        <Text style={styles.locationButtonText}>Use My Location for Sun Hours</Text>
+      </TouchableOpacity>
 
       <Controller
         control={control}
@@ -180,29 +221,43 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 15,
     backgroundColor: '#f5f5f5',
+    marginTop: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginVertical: 20,
+    marginVertical: 30,
+    marginBottom: 20,
   },
   subtitle: {
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 10,
     color: '#666',
   },
   input: {
     marginVertical: 10,
+  },
+  locationButton: {
+    backgroundColor: '#3B82F6', // Blue for location
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  locationButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   button: {
     backgroundColor: '#10B981',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 10,
   },
   buttonText: {
     color: 'white',
@@ -210,7 +265,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   results: {
-    marginTop: 30,
+    marginTop: 10,
     padding: 20,
     backgroundColor: 'white',
     borderRadius: 8,
