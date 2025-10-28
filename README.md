@@ -7,6 +7,10 @@ A React Native mobile app for estimating solar panel return on investment (ROI) 
 - Real-time calculations: Annual production via $$ E = A \times r \times H \times PR $$ (A=roof area, r=0.15 efficiency, H=sun hours, PR=0.75), savings at 0.17€/kWh, and payback for €15,000 system.
 - Results display with BarChart (react-native-chart-kit) for cumulative ROI over 10 years.
 - Alerts for high payback (>20 years) and green theming for eco appeal.
+- Location-based sun hours via Expo Location API for auto-fills.
+- Export results as shareable report with react-native-pdf.
+- Add battery storage estimator for hybrid solar setups.
+- Dark mode and multi-language support.
 
 ## Installation
 1. Clone or create: `npx create-expo-app SolarROI-Estimator`.
@@ -20,10 +24,7 @@ A React Native mobile app for estimating solar panel return on investment (ROI) 
 - Test on Expo Go by scanning QR code.
 
 ## Upcoming Features
-- Location-based sun hours via Expo Location API for auto-fills.
 - Integration with API for real-time pricing/incentives.
-- Export results as shareable report with react-native-pdf.
-- Add battery storage estimator for hybrid solar setups.
 - Dark mode and multi-language support.
 
 [1](https://greenpowerenergy.com/solar-panel-roi/)
